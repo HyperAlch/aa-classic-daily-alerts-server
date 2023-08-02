@@ -7,10 +7,17 @@ use crate::{
     OFFSET,
 };
 
+#[derive(PartialEq)]
 pub struct GameEvent {
     pub name: EventName,
-    times: Vec<NaiveTime>,
-    time_type: TimeType,
+    pub times: Vec<NaiveTime>,
+    pub time_type: TimeType,
+}
+
+impl std::fmt::Display for GameEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 pub struct GameEvents(pub Vec<GameEvent>);
@@ -32,11 +39,22 @@ impl GameEvent {
     }
 }
 
+#[derive(PartialEq)]
 pub enum TimeType {
     ServerTime,
     GameTime,
 }
 
+impl std::fmt::Display for TimeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::GameTime => write!(f, "Game Time"),
+            Self::ServerTime => write!(f, "Server Time"),
+        }
+    }
+}
+
+#[derive(PartialEq)]
 pub enum EventName {
     CrimsonRift,
     GrimghastRift,
@@ -59,9 +77,12 @@ impl std::fmt::Display for EventName {
     }
 }
 
+impl EventName {}
+
 impl GameEvent {
-    pub fn check(&self) -> bool {
+    pub fn check(&self) -> (bool, String) {
         println!("Checking: {}", self.name);
+        let time_export = "".to_string();
         match self.time_type {
             TimeType::GameTime => {
                 let mut game_time = GameTime::new();
@@ -70,9 +91,10 @@ impl GameEvent {
 
                 let event_times = self.times.iter().find(|x| **x == time);
                 if event_times.is_some() {
-                    true
+                    let time_export = event_times.unwrap().to_string();
+                    (true, time_export)
                 } else {
-                    false
+                    (false, time_export)
                 }
             }
             TimeType::ServerTime => {
@@ -81,9 +103,10 @@ impl GameEvent {
 
                 let event_times = self.times.iter().find(|x| **x == time);
                 if event_times.is_some() {
-                    true
+                    let time_export = event_times.unwrap().to_string();
+                    (true, time_export)
                 } else {
-                    false
+                    (false, time_export)
                 }
             }
         }

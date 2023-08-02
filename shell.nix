@@ -20,11 +20,6 @@ in
 
     
     RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
-
-    # `mkdir temp` if temp directory is missing
-    TMPDIR = "${builtins.toString ./.}/temp";
-
-    # `cargo install cargo-shuttle` if shuttle has been garbage collected
   }
   
   

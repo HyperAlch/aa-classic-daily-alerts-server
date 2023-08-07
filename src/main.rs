@@ -1,9 +1,11 @@
-use chrono::{Timelike, Utc};
+use chrono::{Duration, Timelike, Utc};
+
 use chrono_tz::US::Eastern as my_tz;
 use clock::BasicTime;
 use event_system::{EventName, GameEvent, GameEvents, TimeType};
 use queue_system::EventQueue;
-
+use serenity::model::webhook::Webhook;
+use serenity::{http::Http, model::prelude::Embed};
 use std::{println, vec};
 use tokio::time::sleep;
 
@@ -26,17 +28,17 @@ async fn main() {
         let game_events = GameEvents(vec![
             GameEvent::new(
                 EventName::CrimsonRift,
-                vec![BasicTime::new(7, 3, 0)],
+                vec![BasicTime::new(13, 0, 0)],
                 TimeType::GameTime,
             ),
             GameEvent::new(
                 EventName::GrimghastRift,
-                vec![BasicTime::new(7, 4, 0)],
+                vec![BasicTime::new(1, 0, 0)],
                 TimeType::GameTime,
             ),
             GameEvent::new(
                 EventName::AbyssalAttack,
-                vec![BasicTime::new(19, 29, 0)],
+                vec![BasicTime::new(4, 18, 0)],
                 TimeType::ServerTime,
             ),
             GameEvent::new(
@@ -56,8 +58,10 @@ async fn main() {
             ),
         ]);
 
+        let time_ahead = 2;
+
         for game_event in game_events.0 {
-            let out = game_event.check();
+            let out = game_event.check(Duration::minutes(time_ahead));
             if out.0 {
                 event_queue.add(game_event, out.1);
             }
@@ -66,11 +70,31 @@ async fn main() {
         if event_queue.is_ready() {
             let e = event_queue.pop();
             tokio::spawn(async move {
-                if let Some(e) = e {
+                if let Some(event) = e {
                     println!(
                         "\n\n[{} was detected at {} {}]\n\n",
-                        e.name, e.time, e.time_type
+                        event.name, event.time, event.time_type
                     );
+                    let http = Http::new("");
+                    let webhook = Webhook::from_url(&http, "https://discord.com/api/webhooks/1137894015702945862/MgGmMvnVe8sUOkQOR-8QBdQ3mlwHj_NLa632jS4EQAjpvbChqqB9gsliutzV009iWpWk").await.expect("Webhook invalid!");
+                    let embed = Embed::fake(|e| {
+                        e.title(event.name)
+                            .description(format!("Event starts in ~{} minutes", time_ahead))
+                            .field(format!("[{}]", event.time_type), &event.time[0..5], false)
+                            .field(
+                                "[Local Time]",
+                                format!("<t:{}>", event.time.split("|").collect::<Vec<&str>>()[1]),
+                                false,
+                            )
+                    });
+                    webhook
+                        .execute(&http, false, |w| {
+                            w.content("@everyone")
+                                .embeds(vec![embed])
+                                .username("AA Classic Daily Alerts")
+                        })
+                        .await
+                        .expect("Could not execute webhook.");
                 }
             });
             event_queue.clear();
@@ -88,7 +112,15 @@ fn tick_clock() {
     let mut game_time = GameTime::new();
     game_time.offset(OFFSET);
 
-    let server_time = ServerTime::new(&my_tz);
-    println!("Server Time: {}", server_time);
+    let server_time = ServerTime::new();
+    let server_time_eastern = ServerTime::with_tz(my_tz);
+    println!("Server Time Eastern: {}", server_time_eastern);
+    println!("Server Time Raw: {}", server_time);
     println!("Game Time: {}", game_time);
+
+    game_time.offset(-OFFSET);
+    println!(
+        "Server Time From Game Time: {}",
+        ServerTime::from(game_time)
+    )
 }

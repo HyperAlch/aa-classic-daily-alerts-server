@@ -1,5 +1,6 @@
 use chrono::{Duration, NaiveTime, Timelike, Utc};
 use chrono_tz::Tz;
+
 use std::format;
 
 pub struct GameTime {
@@ -11,8 +12,8 @@ pub struct ServerTime {
 }
 
 impl ServerTime {
-    pub fn new(time_zone: &Tz) -> Self {
-        let now = Utc::now().with_timezone(time_zone);
+    pub fn new() -> Self {
+        let now = Utc::now();
         Self {
             time: NaiveTime::from_hms_opt(now.hour(), now.minute(), now.second()).unwrap(),
         }
@@ -20,6 +21,29 @@ impl ServerTime {
 
     pub fn get_naive(&self) -> NaiveTime {
         self.time
+    }
+
+    pub fn with_tz(tz: Tz) -> Self {
+        let now = Utc::now().with_timezone(&tz);
+        Self {
+            time: NaiveTime::from_hms_opt(now.hour(), now.minute(), now.second()).unwrap(),
+        }
+    }
+}
+
+impl From<GameTime> for ServerTime {
+    fn from(value: GameTime) -> Self {
+        let game_time = value.get_naive();
+        let game_hours = game_time.hour();
+        let mut game_minutes = game_time.minute();
+
+        game_minutes += game_hours * 60;
+
+        let real_seconds = game_minutes * 10;
+
+        Self {
+            time: NaiveTime::from_num_seconds_from_midnight_opt(real_seconds, 0).unwrap(),
+        }
     }
 }
 

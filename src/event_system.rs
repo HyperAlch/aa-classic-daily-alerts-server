@@ -1,4 +1,4 @@
-use chrono::NaiveTime;
+use chrono::{Duration, NaiveTime, Utc};
 use chrono_tz::US::Eastern as my_tz;
 use std::println;
 
@@ -77,33 +77,50 @@ impl std::fmt::Display for EventName {
     }
 }
 
-impl EventName {}
-
 impl GameEvent {
-    pub fn check(&self) -> (bool, String) {
+    pub fn check(&self, time_ahead: Duration) -> (bool, String) {
         println!("Checking: {}", self.name);
         let time_export = "".to_string();
         match self.time_type {
             TimeType::GameTime => {
                 let mut game_time = GameTime::new();
                 game_time.offset(OFFSET);
-                let time = game_time.get_naive();
+
+                let time = time_ahead.num_seconds() / 10;
+                let time = game_time
+                    .get_naive()
+                    .overflowing_add_signed(Duration::minutes(time))
+                    .0;
 
                 let event_times = self.times.iter().find(|x| **x == time);
                 if event_times.is_some() {
-                    let time_export = event_times.unwrap().to_string();
+                    let mut time_export = event_times.unwrap().to_string();
+
+                    let now = Utc::now()
+                        .with_timezone(&my_tz)
+                        .checked_add_signed(time_ahead)
+                        .unwrap();
+
+                    time_export.push_str(&format!("|{}", now.timestamp()));
+
                     (true, time_export)
                 } else {
                     (false, time_export)
                 }
             }
             TimeType::ServerTime => {
-                let server_time = ServerTime::new(&my_tz);
+                let server_time = ServerTime::new();
                 let time = server_time.get_naive();
+                let time = time.overflowing_add_signed(time_ahead).0;
 
                 let event_times = self.times.iter().find(|x| **x == time);
                 if event_times.is_some() {
-                    let time_export = event_times.unwrap().to_string();
+                    let mut time_export = event_times.unwrap().to_string();
+                    let now = Utc::now()
+                        .with_timezone(&my_tz)
+                        .checked_add_signed(time_ahead)
+                        .unwrap();
+                    time_export.push_str(&format!("|{}", now.timestamp()));
                     (true, time_export)
                 } else {
                     (false, time_export)

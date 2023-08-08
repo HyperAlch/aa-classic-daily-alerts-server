@@ -84,7 +84,7 @@ impl GameEvent {
         match self.time_type {
             TimeType::GameTime => {
                 let mut game_time = GameTime::new();
-                game_time.offset(OFFSET);
+                game_time.offset(OFFSET, 0);
 
                 let time = time_ahead.num_seconds() / 10;
                 let time = game_time

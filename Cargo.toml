@@ -9,6 +9,8 @@ edition = "2021"
 chrono = "0.4.26"
 chrono-tz = "0.8.3"
 tokio = { version = "1", features = ["full"] }
+sqlx = { version = "0.7", features = ["runtime-tokio", "tls-rustls", "sqlite"] }
+anyhow = "1.0.72"
 
 [dependencies.serenity]
 default-features = false

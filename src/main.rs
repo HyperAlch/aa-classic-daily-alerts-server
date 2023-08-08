@@ -1,25 +1,50 @@
+use crate::clock::{GameTime, ServerTime};
 use chrono::{Duration, Timelike, Utc};
-
 use chrono_tz::US::Eastern as my_tz;
 use clock::BasicTime;
 use event_system::{EventName, GameEvent, GameEvents, TimeType};
 use queue_system::EventQueue;
 use serenity::model::webhook::Webhook;
 use serenity::{http::Http, model::prelude::Embed};
+use sqlx::sqlite::SqliteConnection;
+use sqlx::Connection;
+use std::env;
 use std::{println, vec};
 use tokio::time::sleep;
 
-use crate::clock::{GameTime, ServerTime};
-
-const OFFSET: i64 = -14;
+const OFFSET: i64 = 0;
 mod clock;
 mod event_system;
 mod queue_system;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
+    {
+        let mut conn = SqliteConnection::connect(&env::var("DATABASE_URL").unwrap()).await?;
+        sqlx::migrate!("./migrations").run(&mut conn).await?;
+
+        let recs = sqlx::query!(
+            r#"
+                SELECT *
+                FROM webhook
+            "#
+        )
+        .fetch_all(&mut conn)
+        .await
+        .unwrap();
+
+        for rec in recs {
+            println!("Guild ID: {}, Webhook: {}\n", rec.guild_id, rec.hook_url);
+        }
+    }
+
+    tokio::spawn(async move {
+        println!("Now listening on localhost:3000");
+    });
+
     let mut event_queue = EventQueue::new();
     loop {
+        break;
         println!("\n\n");
         tick_clock();
 
@@ -103,6 +128,7 @@ async fn main() {
         event_queue.tick();
         sleep(std::time::Duration::from_secs(1)).await;
     }
+    Ok(())
 }
 
 fn tick_clock() {
@@ -110,15 +136,15 @@ fn tick_clock() {
 
     println!("Utc Time: {}:{}:{}", now.hour(), now.minute(), now.second());
     let mut game_time = GameTime::new();
-    game_time.offset(OFFSET);
+    game_time.offset(OFFSET, 5);
 
     let server_time = ServerTime::new();
     let server_time_eastern = ServerTime::with_tz(my_tz);
     println!("Server Time Eastern: {}", server_time_eastern);
     println!("Server Time Raw: {}", server_time);
-    println!("Game Time: {}", game_time);
+    println!("[Game Time: {}]", game_time);
 
-    game_time.offset(-OFFSET);
+    game_time.offset(-OFFSET, 0);
     println!(
         "Server Time From Game Time: {}",
         ServerTime::from(game_time)

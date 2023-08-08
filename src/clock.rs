@@ -70,14 +70,23 @@ impl GameTime {
         Self { time }
     }
 
-    pub fn offset(&mut self, amount: i64) {
-        if amount > 0 {
-            let result = self.time.overflowing_add_signed(Duration::hours(amount));
+    pub fn offset(&mut self, hours: i64, minutes: i64) {
+        if hours > 0 {
+            let result = self.time.overflowing_add_signed(Duration::hours(hours));
             self.time = result.0;
         }
-        if amount < 0 {
-            let amount = i64::abs(amount);
-            let result = self.time.overflowing_sub_signed(Duration::hours(amount));
+        if hours < 0 {
+            let hours = i64::abs(hours);
+            let result = self.time.overflowing_sub_signed(Duration::hours(hours));
+            self.time = result.0;
+        }
+        if minutes > 0 {
+            let result = self.time.overflowing_add_signed(Duration::minutes(minutes));
+            self.time = result.0;
+        }
+        if minutes < 0 {
+            let minutes = i64::abs(minutes);
+            let result = self.time.overflowing_sub_signed(Duration::minutes(minutes));
             self.time = result.0;
         }
     }

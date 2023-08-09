@@ -1,6 +1,5 @@
-use std::println;
-
 use crate::event_system::GameEvent;
+use std::println;
 
 pub struct EventQueue(Vec<QueueEvent>, u8);
 

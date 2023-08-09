@@ -1,6 +1,5 @@
-use crate::clock::{GameTime, ServerTime};
-use chrono::{Duration, Timelike, Utc};
-use chrono_tz::US::Eastern as my_tz;
+use crate::clock::tick_clock;
+use chrono::Duration;
 use clock::BasicTime;
 use event_system::{EventName, GameEvent, GameEvents, TimeType};
 use queue_system::EventQueue;
@@ -11,40 +10,17 @@ use sqlx::Connection;
 use std::env;
 use std::{println, vec};
 use tokio::time::sleep;
+use warp::Filter;
 
 const OFFSET: i64 = 0;
 mod clock;
+mod database;
 mod event_system;
 mod queue_system;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    {
-        let mut conn = SqliteConnection::connect(&env::var("DATABASE_URL").unwrap()).await?;
-        sqlx::migrate!("./migrations").run(&mut conn).await?;
-
-        let recs = sqlx::query!(
-            r#"
-                SELECT *
-                FROM webhook
-            "#
-        )
-        .fetch_all(&mut conn)
-        .await
-        .unwrap();
-
-        for rec in recs {
-            println!("Guild ID: {}, Webhook: {}\n", rec.guild_id, rec.hook_url);
-        }
-    }
-
-    tokio::spawn(async move {
-        println!("Now listening on localhost:3000");
-    });
-
+async fn run_internal_server() -> anyhow::Result<()> {
     let mut event_queue = EventQueue::new();
     loop {
-        break;
         println!("\n\n");
         tick_clock();
 
@@ -128,25 +104,38 @@ async fn main() -> anyhow::Result<()> {
         event_queue.tick();
         sleep(std::time::Duration::from_secs(1)).await;
     }
-    Ok(())
 }
 
-fn tick_clock() {
-    let now = Utc::now();
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    tokio::spawn(async move {
+        run_internal_server().await.unwrap();
+    });
 
-    println!("Utc Time: {}:{}:{}", now.hour(), now.minute(), now.second());
-    let mut game_time = GameTime::new();
-    game_time.offset(OFFSET, 5);
+    println!("Now listening on localhost:3000");
+    {
+        let mut conn = SqliteConnection::connect(&env::var("DATABASE_URL").unwrap())
+            .await
+            .unwrap();
+        sqlx::migrate!("./migrations").run(&mut conn).await.unwrap();
 
-    let server_time = ServerTime::new();
-    let server_time_eastern = ServerTime::with_tz(my_tz);
-    println!("Server Time Eastern: {}", server_time_eastern);
-    println!("Server Time Raw: {}", server_time);
-    println!("[Game Time: {}]", game_time);
+        let recs = sqlx::query!(
+            r#"
+                SELECT *
+                FROM webhook
+            "#
+        )
+        .fetch_all(&mut conn)
+        .await
+        .unwrap();
 
-    game_time.offset(-OFFSET, 0);
-    println!(
-        "Server Time From Game Time: {}",
-        ServerTime::from(game_time)
-    )
+        for rec in recs {
+            println!("Guild ID: {}, Webhook: {}\n", rec.guild_id, rec.hook_url);
+        }
+    }
+    // GET /hello/warp => 200 OK with body "Hello, warp!"
+    let hello = warp::path!("hello" / String).map(|name| format!("Hello, {}!", name));
+
+    warp::serve(hello).run(([127, 0, 0, 1], 3000)).await;
+    Ok(())
 }

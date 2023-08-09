@@ -1,6 +1,7 @@
+use crate::OFFSET;
 use chrono::{Duration, NaiveTime, Timelike, Utc};
 use chrono_tz::Tz;
-
+use chrono_tz::US::Eastern as my_tz;
 use std::format;
 
 pub struct GameTime {
@@ -127,4 +128,24 @@ impl BasicTime {
     pub fn get_naive(&self) -> NaiveTime {
         NaiveTime::from_hms_opt(self.hours, self.minutes, self.seconds).unwrap()
     }
+}
+
+pub fn tick_clock() {
+    let now = Utc::now();
+
+    println!("Utc Time: {}:{}:{}", now.hour(), now.minute(), now.second());
+    let mut game_time = GameTime::new();
+    game_time.offset(OFFSET, 5);
+
+    let server_time = ServerTime::new();
+    let server_time_eastern = ServerTime::with_tz(my_tz);
+    println!("Server Time Eastern: {}", server_time_eastern);
+    println!("Server Time Raw: {}", server_time);
+    println!("[Game Time: {}]", game_time);
+
+    game_time.offset(-OFFSET, 0);
+    println!(
+        "Server Time From Game Time: {}",
+        ServerTime::from(game_time)
+    )
 }

@@ -1,11 +1,10 @@
-use chrono::{Duration, NaiveTime, Utc};
-use chrono_tz::US::Eastern as my_tz;
-use std::println;
-
 use crate::{
     clock::{BasicTime, GameTime, ServerTime},
     OFFSET,
 };
+use chrono::{Duration, NaiveTime, Utc};
+use chrono_tz::US::Eastern as my_tz;
+use std::println;
 
 #[derive(PartialEq)]
 pub struct GameEvent {
